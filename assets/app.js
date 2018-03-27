@@ -29,15 +29,19 @@ Styling and theme are completely up to you. Get Creative*/
   var initialPosition = "bottom"
   var recordID
   var allRecords = []
+  var intervalId;
+  var timer;
+
  
 
 
 $(document).ready(function(){
-    
+    startTimer()
     toggleForm()
     togglePosition();
     ref.on('value', function(snapshot){
-      
+        var currentTime = moment().format("hh:mm:ss");
+        $('#last-sync').html("Last Sync: " + currentTime)
       updateTable(snapshot)
     })
 
@@ -50,6 +54,11 @@ $(document).ready(function(){
     $('body').on('click', '.edit', function(){
         formMode = "edit";
         recordID = $(this).attr("id");
+        // get row to highlight, need to work out logic to unhighlight
+        var row = $(this).closest('tr')
+        var rowidx = row.index()
+        console.log(rowidx)
+        row.css("background-color", "yellow")
       //  var table = $('#schedule-table')
       //  var thisRow = $(this).index()
        // var value = table.rows[thisRow].cells[0].text()
@@ -58,6 +67,12 @@ $(document).ready(function(){
         toggleForm();
         togglePosition();
         editRecord(recordID);
+    })
+
+    $('body').on('click', '.btnToggle', function(){
+        formPosition = $(this).attr("id")
+        initialPosition = formPosition
+        togglePosition()
     })
 
   /*  $('#schedule-table-body').on('click', 'tr', function(e){
@@ -116,44 +131,49 @@ function updateTable(snapshot){
     // loop through snapshot and get each child
     $('#schedule-table-body').empty();
     snapshot.forEach(function(childSnapshot){
+        
         var childData = childSnapshot.val();
         var id = childSnapshot.key;
-        if(allRecords.indexOf(id) < 0){
-        allRecords.push(id);
-        }
         
+        if(id !== "lastUpdate"){
+            
+            if(allRecords.indexOf(id) < 0){
+                allRecords.push(id);
+            }
         
-        // assign each child value to appropriate vars
-        var trainName = childData.trainName;
-        var destination = childData.destination;
-        var firstTrain = childData.firstTrain;
-        var frequency = childData.frequency;
-        // calculate next train
-        var nextTrain = calcTimes(firstTrain, frequency)
-        // calculate time to arrival, format it using moment.js
-        var timeToArrival = moment(nextTrain, "hh:mm").fromNow();
-        // format the arrival time
-        nextTrain = nextTrain.format("hh:mm")
+            // assign each child value to appropriate vars
+            var trainName = childData.trainName;
+            var destination = childData.destination;
+            var firstTrain = childData.firstTrain;
+            var frequency = childData.frequency;
+            // calculate next train
+            var nextTrain = calcTimes(firstTrain, frequency)
+            // calculate time to arrival, format it using moment.js
+            var timeToArrival = moment(nextTrain, "hh:mm").fromNow();
+            // format the arrival time
+            nextTrain = nextTrain.format("hh:mm")
 
-        // create a new table row
-        var newRow = $('<tr>');
-        // create a new cell for each value
-        var trainNameCell = $('<td>').html(trainName);
-        var destinationCell = $('<td>').html(destination);
-        var frequencyCell = $('<td>').html(frequency);
-        var nextArrivalCell = $('<td>').html(nextTrain)
-        var timeToArrivalCell = $('<td>').html(timeToArrival);
-        var editCell = $('<td>')
-        var editButton = $('<button class="btn btn-default edit">')
+            // create a new table row
+            var newRow = $('<tr>');
+            // create a new cell for each value
+            var trainNameCell = $('<td>').html(trainName);
+            var destinationCell = $('<td>').html(destination);
+            var frequencyCell = $('<td>').html(frequency);
+            var nextArrivalCell = $('<td>').html(nextTrain)
+            var timeToArrivalCell = $('<td>').html(timeToArrival);
+            var editCell = $('<td>')
+            var editButton = $('<button class="btn btn-default edit">')
                         .attr('id', id)
                         .html("Edit")
                         .appendTo(editCell)
 
-        // append the cells to the row
-        newRow.append(trainNameCell, destinationCell, frequencyCell, nextArrivalCell, timeToArrivalCell, editCell)
-        // append the row to the table body
-        $('#schedule-table-body').append(newRow)
+            // append the cells to the row
+            newRow.append(trainNameCell, destinationCell, frequencyCell, nextArrivalCell, timeToArrivalCell, editCell)
+            // append the row to the table body
+            $('#schedule-table-body').append(newRow)
+        }
     })
+
 }
 
 function calcTimes(first, frequency){
@@ -180,6 +200,7 @@ function editRecord(recordID){
    ref.child(recordID).update({
        "editing": true
    })
+   
 
 }
 
@@ -202,6 +223,9 @@ function toggleForm(){
 function togglePosition(){
     switch(formPosition){
         case "bottom":
+            $('#main')
+                .removeClass("container-fluid")
+                .addClass("container")
             $('#schedule')
                 .removeClass("col-xs-8")
                 .addClass("col-xs-12")
@@ -211,33 +235,49 @@ function togglePosition(){
                 .addClass("col-xs-12")
                 .appendTo($('#row-secondary'));
             break;
+
         case "right":
-            $('#schedule')
-            .removeClass("col-xs-12")
-            .addClass("col-xs-8")
-            $('#form')
-            .removeClass("col-xs-12")
-            .addClass("col-xs-4")
-            .appendTo($('#row-primary'))
-            break;
-        case "left":
+            $('#main')
+                .removeClass("container")
+                .addClass("container-fluid")
             $('#schedule')
                 .removeClass("col-xs-12")
                 .addClass("col-xs-8")
+                .appendTo($('#row-primary'))
+            $('#form')
+                .removeClass("col-xs-12 pull-left")
+                .addClass("col-xs-4 pull-right")
+                .appendTo($('#row-primary'))
+            break;
+
+        case "left":
+            $('#main')
+                .removeClass("container")
+                .addClass("container-fluid")
+            $('#schedule')
+                .removeClass("col-xs-12")
+                .addClass("col-xs-8")
+                .appendTo($('#row-primary'))
             $('#form')
                 .removeClass("col-xs-12")
-                .addClass("col-xs-4")
+                .addClass("col-xs-4 pull-left")
                 .prependTo($('#row-primary'))
-                break;
+            break;
+
         case "top":
+            $('#main')
+                .removeClass("container-fluid")
+                .addClass("container")
             $('#schedule')
                 .removeClass("col-xs-8")
                 .addClass("col-xs-12")
-                .appendTo($('#row-primary'))
+                .appendTo($('#row-secondary'))
             $('#form')
                 .removeClass("col-xs-4")
                 .addClass("col-xs-12")
-                .appendTo($('#row-secondary'));
+                .appendTo($('#row-primary'));
+            break;
+
         default:
             return;
             
@@ -250,5 +290,23 @@ function updateAllRecords(){
         ref.child(allRecords[i]).update({
             "editing": false
         })
+    }
+}
+
+
+function startTimer(){
+    clearInterval(intervalId)
+    timer = 60;
+    intervalId = setInterval(timerCountdown, 1000)
+
+}
+
+function timerCountdown(){
+    timer--
+    if(timer === 0){
+        var currentTime = moment().format("hh:mm:ss")
+        ref.update({lastUpdate: currentTime})
+        startTimer()
+        
     }
 }
