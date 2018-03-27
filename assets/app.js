@@ -25,24 +25,46 @@ Styling and theme are completely up to you. Get Creative*/
   var db = firebase.database();
   var ref = db.ref("/train-schedule");
   var formMode = "add"
+  var formPosition = "bottom"
+  var initialPosition = "bottom"
+  var recordID
+  var allRecords = []
  
 
 
 $(document).ready(function(){
     
-
+    toggleForm()
+    togglePosition();
     ref.on('value', function(snapshot){
-      //  var data = snapshot.val();
+      
       updateTable(snapshot)
     })
 
     $('#form-submit').on('click', function(){
-        if(formMode === "add"){
-            addTrain()
-        } else {
-            editTrain()
-        }
+            addTrain();
+            toggleForm();
+            togglePosition();
     })
+
+    $('body').on('click', '.edit', function(){
+        formMode = "edit";
+        recordID = $(this).attr("id");
+      //  var table = $('#schedule-table')
+      //  var thisRow = $(this).index()
+       // var value = table.rows[thisRow].cells[0].text()
+      //  alert(value)
+        updateAllRecords();
+        toggleForm();
+        togglePosition();
+        editRecord(recordID);
+    })
+
+  /*  $('#schedule-table-body').on('click', 'tr', function(e){
+        alert($(e.currentTarget).index());
+        var trainName = $(this).find('td:first').text()
+        alert(trainName)
+    }) */
 })
 
 function addTrain(){
@@ -57,11 +79,23 @@ function addTrain(){
         trainName: nameInput,
         destination: destinationInput,
         firstTrain: firstTrainInput,
-        frequency: frequencyInput
+        frequency: frequencyInput,
+        editing: false
     };
     if(validatedTime){
-        ref.push(postData);
+        if(formMode === "add"){
+            ref.push(postData);
+        } else {
+            ref.child(recordID).update(postData)
+        }
+        $('#input-train-name').val('');
+        $('#input-destination').val('');
+        $('#input-first-train').val('');
+        $('#input-frequency').val('');
+        formPosition = initialPosition
+        formMode = "add"
     }
+    
 }
 
 
@@ -80,8 +114,14 @@ function validateTime(time){
 
 function updateTable(snapshot){
     // loop through snapshot and get each child
+    $('#schedule-table-body').empty();
     snapshot.forEach(function(childSnapshot){
-        var childData = childSnapshot.val()
+        var childData = childSnapshot.val();
+        var id = childSnapshot.key;
+        if(allRecords.indexOf(id) < 0){
+        allRecords.push(id);
+        }
+        
         
         // assign each child value to appropriate vars
         var trainName = childData.trainName;
@@ -103,9 +143,14 @@ function updateTable(snapshot){
         var frequencyCell = $('<td>').html(frequency);
         var nextArrivalCell = $('<td>').html(nextTrain)
         var timeToArrivalCell = $('<td>').html(timeToArrival);
+        var editCell = $('<td>')
+        var editButton = $('<button class="btn btn-default edit">')
+                        .attr('id', id)
+                        .html("Edit")
+                        .appendTo(editCell)
 
         // append the cells to the row
-        newRow.append(trainNameCell, destinationCell, frequencyCell, nextArrivalCell, timeToArrivalCell)
+        newRow.append(trainNameCell, destinationCell, frequencyCell, nextArrivalCell, timeToArrivalCell, editCell)
         // append the row to the table body
         $('#schedule-table-body').append(newRow)
     })
@@ -119,5 +164,91 @@ function calcTimes(first, frequency){
     var minutesAway = frequency - remainder;
     var nextArrival = currentTime.add(minutesAway, "minutes")
     return nextArrival
-  //  return moment(nextArrival) .format("hh:mm");
+}
+
+
+function editRecord(recordID){
+
+  ref.orderByKey().equalTo(recordID).on("child_changed", function(snapshot){
+    console.log(snapshot.val())
+        $('#input-train-name').val(snapshot.val().trainName)
+        $('#input-destination').val(snapshot.val().destination)
+        $('#input-first-train').val(snapshot.val().firstTrain)
+        $('#input-frequency').val(snapshot.val().frequency)
+   })
+  
+   ref.child(recordID).update({
+       "editing": true
+   })
+
+}
+
+
+function toggleForm(){
+     
+    var formTitle = $('#form-title')
+    if(formMode === "edit"){
+        formPosition = "right";
+        formTitle.html("Editing Train Schedule")
+        $('#form-submit').html("Update Train")
+    } else {
+        formPostion = initialPosition
+        formTitle.html("Add Train to Schedule")
+        $('#form-submit').html("Add Train")
+    }
+}
+
+
+function togglePosition(){
+    switch(formPosition){
+        case "bottom":
+            $('#schedule')
+                .removeClass("col-xs-8")
+                .addClass("col-xs-12")
+                .appendTo($('#row-primary'))
+            $('#form')
+                .removeClass("col-xs-4")
+                .addClass("col-xs-12")
+                .appendTo($('#row-secondary'));
+            break;
+        case "right":
+            $('#schedule')
+            .removeClass("col-xs-12")
+            .addClass("col-xs-8")
+            $('#form')
+            .removeClass("col-xs-12")
+            .addClass("col-xs-4")
+            .appendTo($('#row-primary'))
+            break;
+        case "left":
+            $('#schedule')
+                .removeClass("col-xs-12")
+                .addClass("col-xs-8")
+            $('#form')
+                .removeClass("col-xs-12")
+                .addClass("col-xs-4")
+                .prependTo($('#row-primary'))
+                break;
+        case "top":
+            $('#schedule')
+                .removeClass("col-xs-8")
+                .addClass("col-xs-12")
+                .appendTo($('#row-primary'))
+            $('#form')
+                .removeClass("col-xs-4")
+                .addClass("col-xs-12")
+                .appendTo($('#row-secondary'));
+        default:
+            return;
+            
+
+    }
+}
+
+function updateAllRecords(){
+    for(i=0; i < allRecords.length; i++){
+        ref.child(allRecords[i]).update({
+            "editing": false
+        })
+    }
 }
