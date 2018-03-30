@@ -1,14 +1,4 @@
-/*
-Make sure that your app suits this basic spec:
-
-When adding trains, administrators should be able to submit the following:
-Train Name
-Destination
-First Train Time -- in military time
-Frequency -- in minutes
-Code this app to calculate when the next train will arrive; this should be relative to the current time.
-Users from many different machines must be able to view same train times.
-Styling and theme are completely up to you. Get Creative*/
+// TODO: Add cancel button to editing form, add more styling
 
 
   // Initialize Firebase
@@ -27,7 +17,7 @@ Styling and theme are completely up to you. Get Creative*/
   var formMode = "add"
   var formPosition = "bottom"
   var initialPosition = "bottom"
-  var recordID
+  var recordID;
   var allRecords = []
   var intervalId;
   var timer;
@@ -36,60 +26,66 @@ Styling and theme are completely up to you. Get Creative*/
 
 
 $(document).ready(function(){
+    // set start position of panels, start timer
+    $('.btnToggle').hide()
     startTimer()
     toggleForm()
     togglePosition();
+    
+    // firebase event listener
     ref.on('value', function(snapshot){
         var currentTime = moment().format("hh:mm:ss");
         $('#last-sync').html("Last Sync: " + currentTime)
       updateTable(snapshot)
     })
 
+    // display positioning buttons on hover
+    $('#toggle-container').hover(function(){
+        $('.btnToggle').show()
+        $('#toggle-container-span').hide()
+    }, function(){
+        $('.btnToggle').hide()
+        $('#toggle-container-span').show()
+    })
+
+    // click event for adding/editing form
     $('#form-submit').on('click', function(){
             addTrain();
             toggleForm();
             togglePosition();
     })
 
-    $('body').on('click', '.edit', function(){
+    // click event for edit buttons
+    $('table').on('click', '.edit', function(){
         formMode = "edit";
         recordID = $(this).attr("id");
-        // get row to highlight, need to work out logic to unhighlight
-        var row = $(this).closest('tr')
-        var rowidx = row.index()
-        console.log(rowidx)
-        row.css("background-color", "yellow")
-      //  var table = $('#schedule-table')
-      //  var thisRow = $(this).index()
-       // var value = table.rows[thisRow].cells[0].text()
-      //  alert(value)
         updateAllRecords();
         toggleForm();
         togglePosition();
         editRecord(recordID);
     })
 
+    // click event for form positioning buttons
     $('body').on('click', '.btnToggle', function(){
         formPosition = $(this).attr("id")
         initialPosition = formPosition
         togglePosition()
     })
 
-  /*  $('#schedule-table-body').on('click', 'tr', function(e){
-        alert($(e.currentTarget).index());
-        var trainName = $(this).find('td:first').text()
-        alert(trainName)
-    }) */
 })
 
+// function for adding or updating trains
 function addTrain(){
+    // get the textbox values
     var nameInput = $('#input-train-name').val();
     var destinationInput = $('#input-destination').val();
     var firstTrainInput = $('#input-first-train').val();
     var frequencyInput = $('#input-frequency').val();
 
+    // make sure first run is in military time
     var validatedTime = validateTime(firstTrainInput)
     
+    // data to send to firebase
     var postData = {
         trainName: nameInput,
         destination: destinationInput,
@@ -97,6 +93,8 @@ function addTrain(){
         frequency: frequencyInput,
         editing: false
     };
+
+    // add or update train
     if(validatedTime){
         if(formMode === "add"){
             ref.push(postData);
@@ -110,33 +108,34 @@ function addTrain(){
         formPosition = initialPosition
         formMode = "add"
     }
-    
 }
 
 
+// validates first train time (military time)
 function validateTime(time){
-    var errorSpan = $('<span class="glyphicon glyphicon-remove form-control-feedback">')
+  //  var errorSpan = $('<span class="glyphicon glyphicon-remove form-control-feedback">')
     if(time.match(/^([01]?[0-9]|2[0-3]):[0-5][0-9]/)){
-        errorSpan.remove();
         $('#group-first-train').removeClass("has-error has-feedback")
+     //   errorSpan.remove();
         return true;
     } else {
-        $('#group-first-train').addClass("has-error has-feedback").append(errorSpan)
+        $('#group-first-train').addClass("has-error has-feedback") //.append(errorSpan)
         return false;
     }
 }
 
 
+// updates the schedule table with firebase data
 function updateTable(snapshot){
     // loop through snapshot and get each child
     $('#schedule-table-body').empty();
     snapshot.forEach(function(childSnapshot){
-        
+        // get child data and key of child
         var childData = childSnapshot.val();
         var id = childSnapshot.key;
-        
+        // exclude the child called "lastUpdate"
         if(id !== "lastUpdate"){
-            
+            // if child key doesn't exist in allRecords array, push it
             if(allRecords.indexOf(id) < 0){
                 allRecords.push(id);
             }
@@ -152,9 +151,9 @@ function updateTable(snapshot){
             var timeToArrival = moment(nextTrain, "hh:mm").fromNow();
             // format the arrival time
             nextTrain = nextTrain.format("hh:mm")
-
+            
             // create a new table row
-            var newRow = $('<tr>');
+            var newRow = $('<tr>').attr("id", "tr" + id)
             // create a new cell for each value
             var trainNameCell = $('<td>').html(trainName);
             var destinationCell = $('<td>').html(destination);
@@ -162,6 +161,7 @@ function updateTable(snapshot){
             var nextArrivalCell = $('<td>').html(nextTrain)
             var timeToArrivalCell = $('<td>').html(timeToArrival);
             var editCell = $('<td>')
+            // edit button uses child key (id) as it's id so we know which child to retrieve on click
             var editButton = $('<button class="btn btn-default edit">')
                         .attr('id', id)
                         .html("Edit")
@@ -173,9 +173,10 @@ function updateTable(snapshot){
             $('#schedule-table-body').append(newRow)
         }
     })
-
 }
 
+
+// calculates train times
 function calcTimes(first, frequency){
     var currentTime = moment();
     var convertedFirst = moment(first, "HH:mm").subtract(1, "years")
@@ -187,8 +188,9 @@ function calcTimes(first, frequency){
 }
 
 
+// gets the record based on the id of the button clicked
 function editRecord(recordID){
-
+    
   ref.orderByKey().equalTo(recordID).on("child_changed", function(snapshot){
     console.log(snapshot.val())
         $('#input-train-name').val(snapshot.val().trainName)
@@ -196,30 +198,39 @@ function editRecord(recordID){
         $('#input-first-train').val(snapshot.val().firstTrain)
         $('#input-frequency').val(snapshot.val().frequency)
    })
-  
+  // change "editing" to true to trigger event listener
+  // side note: it's bullshit I can't just query firebase and instead have to trigger an event like this
    ref.child(recordID).update({
        "editing": true
    })
-   
-
 }
 
 
+// toggles the form between an "Add Train" and an "Edit Train" form
 function toggleForm(){
-     
+    var formHeading = $('#form-heading')
     var formTitle = $('#form-title')
     if(formMode === "edit"){
         formPosition = "right";
         formTitle.html("Editing Train Schedule")
         $('#form-submit').html("Update Train")
+        formHeading.css({
+                'background': '#a63a50',
+                'border-color': '#a63a50'
+        }) 
     } else {
         formPostion = initialPosition
         formTitle.html("Add Train to Schedule")
         $('#form-submit').html("Add Train")
+        formHeading.css({
+        'background-color': '#546a7b',
+        'border-color': '#546a7b'
+        })
     }
 }
 
 
+// changes the position of the form by adding/removing bootstrap classes to elements
 function togglePosition(){
     switch(formPosition){
         case "bottom":
@@ -227,12 +238,12 @@ function togglePosition(){
                 .removeClass("container-fluid")
                 .addClass("container")
             $('#schedule')
-                .removeClass("col-xs-8")
+                .removeClass("col-md-8")
                 .addClass("col-xs-12")
                 .appendTo($('#row-primary'))
             $('#form')
-                .removeClass("col-xs-4")
-                .addClass("col-xs-12")
+                .removeClass("col-md-4")
+                .addClass("col-xs-12 pull-right")
                 .appendTo($('#row-secondary'));
             break;
 
@@ -241,12 +252,12 @@ function togglePosition(){
                 .removeClass("container")
                 .addClass("container-fluid")
             $('#schedule')
-                .removeClass("col-xs-12")
-                .addClass("col-xs-8")
+             //   .removeClass("col-xs-12")
+                .addClass("col-md-8")
                 .appendTo($('#row-primary'))
             $('#form')
-                .removeClass("col-xs-12 pull-left")
-                .addClass("col-xs-4 pull-right")
+                .removeClass("pull-left")
+                .addClass("col-md-4 pull-right")
                 .appendTo($('#row-primary'))
             break;
 
@@ -255,12 +266,12 @@ function togglePosition(){
                 .removeClass("container")
                 .addClass("container-fluid")
             $('#schedule')
-                .removeClass("col-xs-12")
-                .addClass("col-xs-8")
+             //   .removeClass("col-xs-12")
+                .addClass("col-md-8")
                 .appendTo($('#row-primary'))
             $('#form')
-                .removeClass("col-xs-12")
-                .addClass("col-xs-4 pull-left")
+             //   .removeClass("col-xs-12")
+                .addClass("col-md-4 pull-left")
                 .prependTo($('#row-primary'))
             break;
 
@@ -269,22 +280,24 @@ function togglePosition(){
                 .removeClass("container-fluid")
                 .addClass("container")
             $('#schedule')
-                .removeClass("col-xs-8")
+                .removeClass("col-md-8")
                 .addClass("col-xs-12")
                 .appendTo($('#row-secondary'))
             $('#form')
-                .removeClass("col-xs-4")
-                .addClass("col-xs-12")
+                .removeClass("col-md-4")
+                .addClass("col-xs-12 pull-right")
                 .appendTo($('#row-primary'));
             break;
 
         default:
             return;
-            
-
     }
 }
 
+
+// updates each record to make sure editing=false. This is necessary so that changing editing=true
+// will trigger the event to retrieve a child to edit. Again, it would be nice to be able to just query.
+// this function could also be used for other mass updates if ever needed
 function updateAllRecords(){
     for(i=0; i < allRecords.length; i++){
         ref.child(allRecords[i]).update({
@@ -294,19 +307,20 @@ function updateAllRecords(){
 }
 
 
+// starts a 60 second timer, used for auto updating
 function startTimer(){
     clearInterval(intervalId)
     timer = 60;
     intervalId = setInterval(timerCountdown, 1000)
-
 }
 
+// countdown for timer
 function timerCountdown(){
     timer--
+    // when timer hits 0, update the "lastUpdate" record to trigger a value change, which updates the table
     if(timer === 0){
         var currentTime = moment().format("hh:mm:ss")
         ref.update({lastUpdate: currentTime})
-        startTimer()
-        
+        startTimer() 
     }
 }

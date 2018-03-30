@@ -1,5 +1,14 @@
 
-/* 
-#input-first-train:invalid{
-border-color: red;
-} */
+
+
+#schedule-panel > .panel-heading{
+    background-color: #393d3f;
+    border-color: #393d3f;
+    color: #fdfdff;
+}
+
+#form-heading{
+    color: #fdfdff;
+    background-color: #546a7b;
+    border-color: #546a7b;
+}
